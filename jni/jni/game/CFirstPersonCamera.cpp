@@ -1,0 +1,143 @@
+#include "../main.h"
+
+#include "game.h"
+#include "crosshair.h"
+#include "CFirstPersonCamera.h"
+
+#include "..//chatwindow.h"
+#include "../CSettings.h"
+
+#include "..//net/netgame.h"
+
+extern CNetGame* pNetGame;
+extern CSettings* pSettings;
+extern CCrossHair* pCrossHair;
+extern CChatWindow* pChatWindow;
+
+bool CFirstPersonCamera::m_bEnabled = false;
+
+MATRIX4X4* RwMatrixMultiplyByVector(VECTOR* out, MATRIX4X4* a2, VECTOR* in);
+void CFirstPersonCamera::ProcessCameraOnFoot(uintptr_t pCam, CPlayerPed* pPed)
+{
+	if (!m_bEnabled || *(uint8_t*)(SA_ADDR(0x8B147E)) || *(uint8_t*)(SA_ADDR(0x8B147F)))
+		return;
+	
+	if (pPed->IsInVehicle())
+		return;
+
+	VECTOR* pVec = (VECTOR*)(pCam + 372);
+
+	VECTOR vecOffset;
+	vecOffset.X = 0.35f;
+	vecOffset.Y = 0.1f;
+	vecOffset.Z = 0.1f;
+
+	if (pCrossHair->m_NeedFixFirstCam == false)
+	{
+		if (CAdjustableHudPosition::GetElementPosition(E_HUD_ELEMENT::HUD_FIRSTPERSON).X != -1)
+			vecOffset.X += (float)(CAdjustableHudPosition::GetElementPosition(E_HUD_ELEMENT::HUD_FIRSTPERSON).X - 200) / 100.0f;
+
+		if (CAdjustableHudPosition::GetElementPosition(E_HUD_ELEMENT::HUD_FIRSTPERSON).Y != -1)
+			vecOffset.Y += (float)(CAdjustableHudPosition::GetElementPosition(E_HUD_ELEMENT::HUD_FIRSTPERSON).Y - 200) / 100.0f;
+
+		if (CAdjustableHudScale::GetElementScale(E_HUD_ELEMENT::HUD_FIRSTPERSON).Y != -1)
+			vecOffset.Z += (float)(CAdjustableHudScale::GetElementScale(E_HUD_ELEMENT::HUD_FIRSTPERSON).Y - 200) / 100.0f;
+	}
+
+	VECTOR vecOut;
+	RwMatrixMultiplyByVector(&vecOut, &(pPed->m_HeadBoneMatrix), &vecOffset);
+
+	if (vecOut.X != vecOut.X || vecOut.Y != vecOut.Y || vecOut.Z != vecOut.Z)
+		pPed->GetBonePosition(4, &vecOut);
+
+	if (vecOut.X != vecOut.X || vecOut.Y != vecOut.Y || vecOut.Z != vecOut.Z)
+		return;
+
+	pVec->X = vecOut.X;
+	pVec->Y = vecOut.Y;
+	pVec->Z = vecOut.Z;
+
+	((RwCamera*(*)(RwCamera*, float))(SA_ADDR(0x001AD6F4 + 1)))(*(RwCamera**)(SA_ADDR(0x95B064)), 0.2f);
+}
+
+void CFirstPersonCamera::ProcessCameraInVeh(uintptr_t pCam, CPlayerPed* pPed, CVehicle* pVeh)
+{
+	if (!m_bEnabled || !pPed->GetGtaVehicle())
+		return;
+
+	VECTOR* pVec = (VECTOR*)(pCam + 372);
+
+	VECTOR vecOffset;
+	vecOffset.X = 0.0f;
+	vecOffset.Y = 0.0f;
+	vecOffset.Z = 0.6f;
+
+	uint16_t modelIndex = pPed->GetGtaVehicle()->entity.nModelIndex;
+
+	if (modelIndex == 581 || modelIndex == 509 || modelIndex == 481 || modelIndex == 462 || modelIndex == 521 || modelIndex == 463 || modelIndex == 510 ||
+		modelIndex == 522 || modelIndex == 461 || modelIndex == 468 || modelIndex == 448 || modelIndex == 586)
+	{
+		vecOffset.X = 0.05f;
+		vecOffset.Y = 0.3f;
+		vecOffset.Z = 0.45f;
+		((RwCamera * (*)(RwCamera*, float))(SA_ADDR(0x1AD6F4 + 1)))(*(RwCamera * *)(SA_ADDR(0x95B064)), 0.3f);
+	}
+	else ((RwCamera * (*)(RwCamera*, float))(SA_ADDR(0x1AD6F4 + 1)))(*(RwCamera * *)(SA_ADDR(0x95B064)), 0.01f);
+
+	if (CAdjustableHudPosition::GetElementPosition(E_HUD_ELEMENT::HUD_FIRSTPERSON_VEH).X != -1)
+		vecOffset.X += (float)(CAdjustableHudPosition::GetElementPosition(E_HUD_ELEMENT::HUD_FIRSTPERSON_VEH).X - 200) / 100.0f;
+
+	if (CAdjustableHudPosition::GetElementPosition(E_HUD_ELEMENT::HUD_FIRSTPERSON_VEH).Y != -1)
+		vecOffset.Y += (float)(CAdjustableHudPosition::GetElementPosition(E_HUD_ELEMENT::HUD_FIRSTPERSON_VEH).Y - 200) / 100.0f;
+
+	if (CAdjustableHudScale::GetElementScale(E_HUD_ELEMENT::HUD_FIRSTPERSON_VEH).Y != -1)
+		vecOffset.Z += (float)(CAdjustableHudScale::GetElementScale(E_HUD_ELEMENT::HUD_FIRSTPERSON_VEH).Y - 200) / 100.0f;
+
+	VECTOR vecOut;
+	MATRIX4X4 mat;
+
+	memcpy(&mat, pPed->m_pPed->entity.mat, sizeof(MATRIX4X4));
+
+	RwMatrixMultiplyByVector(&vecOut, &mat, &vecOffset);
+
+	if (vecOut.X != vecOut.X || vecOut.Y != vecOut.Y || vecOut.Z != vecOut.Z)
+		pPed->GetBonePosition(4, &vecOut);
+
+	if (vecOut.X != vecOut.X || vecOut.Y != vecOut.Y || vecOut.Z != vecOut.Z)
+		return;
+
+	pVec->X = vecOut.X;
+	pVec->Y = vecOut.Y;
+	pVec->Z = vecOut.Z;
+
+	if (pVeh && pSettings->GetReadOnly().iFreezeCam)
+	{
+		if (!pPed->IsAPassenger())
+		{
+			*(uint16_t*)(pCam + 14) = 16;
+		}
+		return;
+	}
+
+	if (!pPed->IsAPassenger())
+	{
+		VECTOR vecSpeed;
+		pVeh->GetMoveSpeedVector(&vecSpeed);
+		float speed = sqrt((vecSpeed.X * vecSpeed.X) + (vecSpeed.Y * vecSpeed.Y) + (vecSpeed.Z * vecSpeed.Z)) * 2.0f * 100.0f;
+	}
+}
+
+void CFirstPersonCamera::SetEnabled(bool bEnabled)
+{
+	m_bEnabled = bEnabled;
+}
+
+void CFirstPersonCamera::Toggle()
+{
+	m_bEnabled ^= 1;
+}
+
+bool CFirstPersonCamera::IsEnabled()
+{
+	return m_bEnabled;
+}
