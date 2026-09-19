@@ -1,0 +1,25 @@
+{
+    "configurations": [
+        {
+            "name": "Win32",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "F:/dev/ndk/sysroot/usr/include",
+                "F:/dev/ndk/sysroot/usr/include/sys/",
+                "F:/dev/ndk/sysroot/usr/include/mipsel-linux-android/**",
+                "F:/dev/ndk/sources/cxx-stl/llvm-libc++/include/**",
+                "F:/dev/ndk/sources/cxx-stl/llvm-libc++/include"
+            ],
+            "defines": [
+                "_DEBUG",
+                "UNICODE",
+                "_UNICODE"
+            ],
+            "compilerPath": "F:\\dev\\C++\\MinGW\\bin\\gcc.exe",
+            "cStandard": "gnu11",
+            "cppStandard": "gnu++14",
+            "intelliSenseMode": "windows-gcc-x86"
+        }
+    ],
+    "version": 4
+}
