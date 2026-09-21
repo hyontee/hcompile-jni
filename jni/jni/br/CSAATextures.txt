@@ -1,0 +1,31 @@
+FILE *sub_39974()
+{
+  FILE *result; // r0
+  FILE *v1; // r4
+  int v2; // r6
+
+  _aeabi_memclr8(byte_249F50, 200);
+  snprintf(byte_249F50, 0xC8u, "%sloader/texdbs.cfg", dword_1D857C);
+  result = fopen(byte_249F50, "r");
+  v1 = result;
+  if ( result )
+  {
+    if ( fgets(byte_249F50, 255, result) )
+    {
+      do
+      {
+        Log();
+        v2 = operator new[](0xC8u);
+        _aeabi_memcpy();
+        sub_2BDE0(v2, 200);
+        if ( ((int (__fastcall *)(int, _DWORD, signed int))(g_libGTASA + 0x1BF245))(v2, 0, 5) )
+          Log();
+        else
+          Log();
+      }
+      while ( fgets(byte_249F50, 255, v1) );
+    }
+    result = (FILE *)j_fclose(v1);
+  }
+  return result;
+}
